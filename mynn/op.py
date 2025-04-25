@@ -248,12 +248,11 @@ class MultiCrossEntropyLoss(Layer):
             # Compute softmax gradients
             probs = softmax(self.predicts)
             probs[np.arange(batch_size), self.labels] -= 1
-            self.grads = probs / batch_size
+            self.grads = probs
         else:
             # For raw logits
             self.grads = np.zeros_like(self.predicts)
             self.grads[np.arange(batch_size), self.labels] = -1.0 / self.predicts[np.arange(batch_size), self.labels]
-            self.grads /= batch_size
         # Then send the grads to model for back propagation
         self.model.backward(self.grads)
 
