@@ -39,7 +39,7 @@ class Linear(Layer):
         out: [batch_size, out_dim]
         """
         self.input = X  # Save input for backward pass
-        return np.dot(X, self.W) + self.b
+        return np.dot(X, self.params['W']) + self.params['b']
 
     def backward(self, grad : np.ndarray):
         """
@@ -56,7 +56,7 @@ class Linear(Layer):
         self.grads['b'] = np.sum(grad, axis=0, keepdims=True) / batch_size
         
         # Gradient for input: dL/dX = grad @ W.T
-        input_grad = np.dot(grad, self.W.T)
+        input_grad = np.dot(grad, self.params['W'].T)
         
         return input_grad
     
