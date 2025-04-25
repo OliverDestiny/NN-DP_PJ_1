@@ -2,6 +2,7 @@
 import mynn as nn
 from draw_tools.plot import plot
 
+import time
 import numpy as np
 from struct import unpack
 import gzip
@@ -46,7 +47,11 @@ loss_fn = nn.op.MultiCrossEntropyLoss(model=linear_model, max_classes=train_labs
 
 runner = nn.runner.RunnerM(linear_model, optimizer, nn.metric.accuracy, loss_fn, scheduler=scheduler)
 
+time_start = time.time()
 runner.train([train_imgs, train_labs], [valid_imgs, valid_labs], num_epochs=5, log_iters=100, save_dir=r'./best_models')
+
+time_end = time.time()
+print('time cost', time_end - time_start, 's')
 
 _, axes = plt.subplots(1, 2)
 axes.reshape(-1)

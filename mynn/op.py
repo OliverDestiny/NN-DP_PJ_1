@@ -18,7 +18,7 @@ class Linear(Layer):
     """
     The linear layer for a neural network. You need to implement the forward function and the backward function.
     """
-    def __init__(self, in_dim, out_dim, initialize_method=np.random.normal, weight_decay=False, weight_decay_lambda=1e-8) -> None:
+    def __init__(self, in_dim, out_dim, initialize_method=lambda size: np.random.normal(scale=np.sqrt(2/sum(size)), size=size), weight_decay=False, weight_decay_lambda=1e-8) -> None:
         super().__init__()
         self.W = initialize_method(size=(in_dim, out_dim))
         self.b = initialize_method(size=(1, out_dim))
