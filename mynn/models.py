@@ -136,8 +136,40 @@ class Model_CNN(Layer):
 
         return grads
 
-    def load_model(self, param_list):
-        pass
-
     def save_model(self, save_path):
-        pass
+        """Save the model parameters to a file."""
+        param_list = {
+            "conv_layers": [
+                {"W": layer.W, "b": layer.b} for layer in self.conv_layers if isinstance(layer, conv2D)
+            ],
+            "fc_layers": [
+                {"W": layer.W, "b": layer.b} for layer in self.fc_layers if isinstance(layer, Linear)
+            ]
+        }
+        with open(save_path, 'wb') as f:
+            pickle.dump(param_list, f)
+
+    def load_model(self, param_path):
+        """Load the model parameters from a file."""
+        with open(param_path, 'rb') as f:
+            param_list = pickle.load(f)
+
+        # Load parameters into convolutional layers
+        conv_idx = 0
+        for layer in self.conv_layers:
+            if isinstance(layer, conv2D):
+                layer.W = param_list["conv_layers"][conv_idx]["W"]
+                layer.b = param_list["conv_layers"][conv_idx]["b"]
+                layer.params['W'] = layer.W
+                layer.params['b'] = layer.b
+                conv_idx += 1
+
+        # Load parameters into fully connected layers
+        fc_idx = 0
+        for layer in self.fc_layers:
+            if isinstance(layer, Linear):
+                layer.W = param_list["fc_layers"][fc_idx]["W"]
+                layer.b = param_list["fc_layers"][fc_idx]["b"]
+                layer.params['W'] = layer.W
+                layer.params['b'] = layer.b
+                fc_idx += 1
