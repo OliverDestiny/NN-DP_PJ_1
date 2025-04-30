@@ -76,22 +76,68 @@ class Model_MLP(Layer):
 
 class Model_CNN(Layer):
     """
-    A model with conv2D layers. Implement it using the operators you have written in op.py
+    A model with conv2D layers. Implemented using the operators in op.py.
     """
-    def __init__(self):
-        pass
+    def __init__(self, conv_params, fc_params, act_func='ReLU'):
+        super().__init__()
+        self.conv_layers = []
+        self.fc_layers = []
+        self.act_func = act_func
+
+        # Initialize convolutional layers
+        for params in conv_params:
+            self.conv_layers.append(conv2D(**params))
+            if act_func == 'ReLU':
+                self.conv_layers.append(ReLU())
+
+        # Initialize fully connected layers
+        for i in range(len(fc_params) - 1):
+            self.fc_layers.append(Linear(fc_params[i], fc_params[i + 1]))
+            if i < len(fc_params) - 2 and act_func == 'ReLU':
+                self.fc_layers.append(ReLU())
+
+        # Combine all layers into a single list for optimizer compatibility
+        self.layers = self.conv_layers + self.fc_layers
 
     def __call__(self, X):
         return self.forward(X)
 
     def forward(self, X):
-        pass
+        # Forward pass through convolutional layers
+        for layer in self.conv_layers:
+            X = layer(X)
+
+        # Flatten the output for fully connected layers
+        X = X.reshape(X.shape[0], -1)
+
+        # Forward pass through fully connected layers
+        for layer in self.fc_layers:
+            X = layer(X)
+
+        return X
 
     def backward(self, loss_grad):
-        pass
-    
+        # Backward pass through fully connected layers
+        grads = loss_grad
+        for layer in reversed(self.fc_layers):
+            grads = layer.backward(grads)
+
+        # Find the last conv2D layer (ignoring activation layers like ReLU)
+        last_conv_layer = next(layer for layer in reversed(self.conv_layers) if isinstance(layer, conv2D))
+
+        # Reshape gradients to match the output shape of the last conv layer
+        grads = grads.reshape(-1, last_conv_layer.out_channels, 
+                              last_conv_layer.input.shape[2], 
+                              last_conv_layer.input.shape[3])
+
+        # Backward pass through convolutional layers
+        for layer in reversed(self.conv_layers):
+            grads = layer.backward(grads)
+
+        return grads
+
     def load_model(self, param_list):
         pass
-        
+
     def save_model(self, save_path):
         pass

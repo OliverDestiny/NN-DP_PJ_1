@@ -89,28 +89,23 @@ class conv2D(Layer):
         return self.forward(X)
     
     def forward(self, X):
-        """
-        input X: [batch, channels, H, W]
-        W : [1, out, in, k, k]
-        no padding
-        """
         batch_size, in_channels, in_h, in_w = X.shape
         self.input = X
-        
+
         # Calculate output dimensions
-        out_h = (in_h + 2*self.padding - self.kernel_size) // self.stride + 1
-        out_w = (in_w + 2*self.padding - self.kernel_size) // self.stride + 1
-        
-        # Initialize output
-        output = np.zeros((batch_size, self.out_channels, out_h, out_w))
-        
+        out_h = (in_h + 2 * self.padding - self.kernel_size) // self.stride + 1
+        out_w = (in_w + 2 * self.padding - self.kernel_size) // self.stride + 1
+
         # Add padding if needed
         if self.padding > 0:
-            X_padded = np.pad(X, ((0,0), (0,0), (self.padding,self.padding), (self.padding,self.padding)))
+            X_padded = np.pad(X, ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)))
         else:
             X_padded = X
-            
-        # Perform convolution
+
+        # Initialize output tensor
+        output = np.zeros((batch_size, self.out_channels, out_h, out_w))
+
+        # Perform convolution manually to avoid large intermediate arrays
         for b in range(batch_size):
             for oc in range(self.out_channels):
                 for h in range(out_h):
@@ -119,32 +114,32 @@ class conv2D(Layer):
                         w_start = w * self.stride
                         h_end = h_start + self.kernel_size
                         w_end = w_start + self.kernel_size
-                        
+
                         receptive_field = X_padded[b, :, h_start:h_end, w_start:w_end]
                         output[b, oc, h, w] = np.sum(receptive_field * self.W[oc]) + self.b[oc]
-        
+
         return output
 
     def backward(self, grads):
-        """
-        grads : [batch_size, out_channel, new_H, new_W]
-        """
-        batch_size, _, out_h, out_w = grads.shape
-        X = self.input
-        
-        # Initialize gradients
+        # Ensure the gradient shape matches the expected output shape
+        batch_size, out_channels, out_h, out_w = grads.shape
+        assert grads.shape[1:] == (self.out_channels, out_h, out_w), (
+            f"Gradient shape {grads.shape} does not match expected shape {(batch_size, self.out_channels, out_h, out_w)}"
+        )
+
+        # Initialize gradients for weights and biases
         self.grads['W'] = np.zeros_like(self.W)
         self.grads['b'] = np.zeros_like(self.b)
-        input_grad = np.zeros_like(X)
-        
-        # Add padding if needed
+        input_grad = np.zeros_like(self.input)
+
+        # Add padding to input if needed
         if self.padding > 0:
-            X_padded = np.pad(X, ((0,0), (0,0), (self.padding,self.padding), (self.padding,self.padding)))
-            input_grad_padded = np.pad(input_grad, ((0,0), (0,0), (self.padding,self.padding), (self.padding,self.padding)))
+            X_padded = np.pad(self.input, ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)))
+            input_grad_padded = np.pad(input_grad, ((0, 0), (0, 0), (self.padding, self.padding), (self.padding, self.padding)))
         else:
-            X_padded = X
+            X_padded = self.input
             input_grad_padded = input_grad
-            
+
         # Compute gradients
         for b in range(batch_size):
             for oc in range(self.out_channels):
@@ -154,26 +149,26 @@ class conv2D(Layer):
                         w_start = w * self.stride
                         h_end = h_start + self.kernel_size
                         w_end = w_start + self.kernel_size
-                        
+
                         receptive_field = X_padded[b, :, h_start:h_end, w_start:w_end]
-                        
+
                         # Gradient for weights
                         self.grads['W'][oc] += grads[b, oc, h, w] * receptive_field
-                        
+
                         # Gradient for input
                         input_grad_padded[b, :, h_start:h_end, w_start:w_end] += grads[b, oc, h, w] * self.W[oc]
-                
+
                 # Gradient for bias
-                self.grads['b'][oc] += np.sum(grads[b, oc])
-        
+                self.grads['b'][oc] += np.sum(grads[:, oc, :, :])
+
         # Remove padding from input gradient if needed
         if self.padding > 0:
             input_grad = input_grad_padded[:, :, self.padding:-self.padding, self.padding:-self.padding]
-        
+
         # Average gradients over batch
         self.grads['W'] /= batch_size
         self.grads['b'] /= batch_size
-        
+
         return input_grad
     
     def clear_grad(self):
@@ -196,7 +191,8 @@ class ReLU(Layer):
         return np.where(X<0, 0, X)
     
     def backward(self, grads):
-        assert self.input.shape == grads.shape
+        # Ensure the gradient shape matches the input shape
+        assert grads.shape == self.input.shape, f"Gradient shape {grads.shape} does not match input shape {self.input.shape}"
         return np.where(self.input < 0, 0, grads)
 
 class MultiCrossEntropyLoss(Layer):
